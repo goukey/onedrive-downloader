@@ -1,6 +1,6 @@
 # OneDrive个人版下载器
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/goukey/onedrive-downloader)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/goukey/onedrive-downloader?style=flat-square)
 
 **专用于 OneDrive 个人版分享链接** 的批量下载工具。
 
