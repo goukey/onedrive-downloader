@@ -68,8 +68,7 @@ def parse_downloads():
     
     if not os.path.exists(INPUT_FILE):
         print("错误：下载列表文件不存在")
-        print(f"当前工作目录: {os.getcwd()}")
-        print(f"文件列表: {os.listdir('.')}")
+        print(f"请先运行前面的步骤生成下载列表")
         input("按任意键退出...")
         sys.exit(1)
 

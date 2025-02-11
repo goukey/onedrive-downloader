@@ -1,30 +1,5 @@
 import json
 
-# 输入和输出文件路径
-INPUT_JSON = 'tmp.json'
-OUTPUT_TXT = 'result.txt'
-
-def extract_urls():
-    try:
-        # 读取JSON文件
-        with open(INPUT_JSON, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # 提取并格式化数据
-        output = []
-        for item in data:
-            if 'name' in item and 'raw_url' in item:
-                output.append(f"{item['name']}\n{item['raw_url']}\n")
-        
-        # 写入结果文件
-        with open(OUTPUT_TXT, 'w', encoding='utf-8') as f:
-            f.writelines(output)
-            
-        print(f"成功导出 {len(output)} 条记录到 {OUTPUT_TXT}")
-        
-    except Exception as e:
-        print(f"处理失败: {str(e)}")
-
 def main():
     """新增main函数"""
     try:
