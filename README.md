@@ -35,7 +35,7 @@
 ## 注意事项
 - 首次使用需要配置aria2的RPC地址和密码
 - 获取的文件直链有效期为1小时，超时需要重新运行程序获取
-- **`⚠️ xxx.sharepoint.com 形式的分享链接推荐使用 [OneDriveShareLinkPushAria2](https://github.com/gaowanliang/OneDriveShareLinkPushAria2)`**
+- ⚠️ **xxx.sharepoint.com 形式的分享链接推荐使用** [OneDriveShareLinkPushAria2](https://github.com/gaowanliang/OneDriveShareLinkPushAria2)
 
 ## 环境要求
 - Windows用户：Windows 7/8/10/11
