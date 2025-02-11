@@ -24,9 +24,8 @@
 
 ### Windows用户
 1. 从[Releases](https://github.com/goukey/onedrive-downloader/releases)页面下载最新版本
-2. 解压下载的文件
-3. 双击运行`onedrive_downloader.exe`
-4. 按提示操作
+2. 双击运行`onedrive_downloader.exe`
+3. 按提示操作
 
 ### Linux用户（从源码运行）
 1. 安装依赖：`pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
