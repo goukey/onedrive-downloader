@@ -1,0 +1,19 @@
+# 临时文件
+tmp.json
+result.txt
+aria2_config.json
+*.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# IDE
+.vscode/
+.idea/ 
