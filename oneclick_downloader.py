@@ -2,6 +2,27 @@ import os
 import subprocess
 import sys
 import json
+from pathlib import Path
+import onedrive_downloader
+from get_urls_only import main as get_urls
+from send_to_aria2 import main as send_to_aria2
+
+# 定义缓存目录（在程序运行目录下）
+CACHE_DIR = Path('.onedrive_downloader')
+
+def ensure_cache_dir():
+    """确保缓存目录存在"""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    # 在Windows系统下设置隐藏属性
+    if os.name == 'nt':
+        try:
+            import ctypes
+            FILE_ATTRIBUTE_HIDDEN = 0x02
+            ret = ctypes.windll.kernel32.SetFileAttributesW(str(CACHE_DIR), FILE_ATTRIBUTE_HIDDEN)
+            if not ret:  # 返回0表示失败
+                print(f"设置隐藏属性失败: {ctypes.get_last_error()}")
+        except Exception as e:
+            print(f"设置隐藏属性时出错: {e}")
 
 def get_onedrive_files():
     """统一处理OneDrive文件获取"""
@@ -37,19 +58,36 @@ def run_step(name, module, required_files=[]):
         return False
 
 def main():
-    steps = [
-        {"name": "获取OneDrive文件列表", "module": "onedrive", "required": []},
-        {"name": "生成下载链接", "module": "get_urls", "required": ["tmp.json"]},
-        {"name": "推送Aria2下载", "module": "send_aria2", "required": ["result.txt"]}
-    ]
+    """主函数"""
+    # 确保缓存目录存在
+    ensure_cache_dir()
 
-    for step in steps:
-        success = run_step(step["name"], step["module"], step["required"])
-        if not success:
-            print("\n流程终止，请检查错误信息")
-            return
-
-    print("\n所有步骤已完成！")
+    # 获取命令行参数
+    if len(sys.argv) > 1:
+        share_url = sys.argv[1]
+    else:
+        share_url = input("请输入OneDrive分享链接：").strip()
+    
+    if not share_url:
+        print("链接不能为空")
+        return False
+    
+    try:
+        # 获取文件列表
+        if not onedrive_downloader.get_onedrive_files(share_url):
+            print("获取文件列表失败")
+            return False
+        
+        # 生成下载链接
+        get_urls()
+        
+        # 发送到aria2下载
+        send_to_aria2()
+        
+        return True
+    except Exception as e:
+        print(f"处理失败: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     try:

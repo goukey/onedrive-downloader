@@ -1,12 +1,19 @@
 import json
+from pathlib import Path
+
+# 定义缓存目录（在程序运行目录下）
+CACHE_DIR = Path('.onedrive_downloader')
+TEMP_JSON_PATH = CACHE_DIR / 'tmp.json'
+RESULT_PATH = CACHE_DIR / 'result.txt'
 
 def main():
     """新增main函数"""
     try:
-        with open('tmp.json', 'r', encoding='utf-8') as f:
+        with TEMP_JSON_PATH.open('r', encoding='utf-8') as f:
             data = json.load(f)
         
-        with open('result.txt', 'w', encoding='utf-8') as f:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with RESULT_PATH.open('w', encoding='utf-8') as f:
             for item in data:
                 name = item['name'].strip()
                 url = item['raw_url'].strip()

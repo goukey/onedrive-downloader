@@ -4,20 +4,61 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            output_name: onedrive_downloader.exe
+            asset_name: onedrive_downloader_windows.exe
+          - os: ubuntu-latest
+            output_name: onedrive_downloader
+            asset_name: onedrive_downloader_linux
+    
+    runs-on: ${{ matrix.os }}
     
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # 获取所有tag
+    
+    - name: Generate Changelog
+      uses: heinrichreimer/github-changelog-generator-action@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        issues: false
+        issuesWoLabels: false
+        pullRequests: true
+        prWoLabels: false
+        addSections: '{"documentation":{"prefix":"**Documentation:**","labels":["documentation"]}}'
+    
+    - name: Create Tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        git tag ${{ github.event.inputs.version }}
+        git push origin ${{ github.event.inputs.version }}
     
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.9'
     
-    - name: Install dependencies
+    - name: Install Linux Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pyqt6
+
+    - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
@@ -25,14 +66,28 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --name onedrive_downloader oneclick_downloader.py
+        # 获取版本号（从tag或手动输入）
+        VERSION="${{ github.event.inputs.version || github.ref_name }}"
+        # 创建源码目录
+        mkdir -p src
+        # 移动所有Python文件到src目录
+        mv *.py src/
+        # 创建版本号文件
+        echo "VERSION = '${VERSION}'" > src/version.py
+        # 从src目录构建
+        cd src
+        pyinstaller --onefile --name ${{ matrix.output_name }} --noconsole gui.py
+        # 移动构建结果到上层目录
+        mv dist/* ../dist/
     
-    - name: Create Release
-      id: create_release
+    - name: Upload Release Asset
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          dist/onedrive_downloader.exe
+        files: dist/${{ matrix.output_name }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## Changelog
+          ${{ steps.changelog.outputs.changelog }}
         draft: false
         prerelease: false
       env:

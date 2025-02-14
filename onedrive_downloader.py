@@ -14,6 +14,7 @@ import io
 
 from requests.models import codes
 from requests.adapters import HTTPAdapter, Retry
+from pathlib import Path
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
@@ -35,6 +36,12 @@ header = {
     "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
 }
 
+# 定义缓存目录（在程序运行目录下）
+CACHE_DIR = Path('.onedrive_downloader')
+TEMP_JSON_PATH = CACHE_DIR / 'tmp.json'
+
+# 确保缓存目录存在
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # 首字母大写
 def capitalize(s):
@@ -48,9 +55,9 @@ def newSession():
     return s
 
 
-def getFiles(originalPath, req, layers, _id=0):
-    fileCount = 0  # 改为局部变量初始化
-    filesData = []  # 每个递归层级独立的结果列表
+def getFiles(originalPath, req=None, layers=0, _id=0):
+    fileCount = 0
+    filesData = []
     isSharepoint = False
     if "-my" not in originalPath:
         isSharepoint = True
@@ -220,9 +227,33 @@ Authorization: {} {}
             collected_files.append(file_info)
             print("\t" * layers, f"文件[{fileCount}]: {item.get('name')}")
 
-    with open('tmp.json', 'w', encoding='utf-8') as f:
-        json.dump(collected_files, f, 
-                 ensure_ascii=False,
-                 indent=4)
+    # 保存文件信息到临时文件
+    with TEMP_JSON_PATH.open('w', encoding='utf-8') as f:
+        json.dump(collected_files, f, indent=4, ensure_ascii=False)
 
     return collected_files
+
+def get_onedrive_files(share_url=None):
+    """获取OneDrive文件列表"""
+    if not share_url:
+        share_url = input("请输入OneDrive分享链接：").strip()
+    if not share_url:
+        print("链接不能为空")
+        return False
+
+    try:
+        # 调用getFiles函数处理链接
+        files = getFiles(share_url)
+        if files:
+            print(f"成功获取 {len(files)} 个文件")
+            return True
+        return False
+    except Exception as e:
+        print(f"获取文件列表失败: {str(e)}")
+        return False
+
+def main(share_url=None):
+    return get_onedrive_files(share_url)
+
+if __name__ == "__main__":
+    main()
