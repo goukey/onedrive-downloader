@@ -16,4 +16,7 @@ dist/
 
 # IDE
 .vscode/
-.idea/ 
+.idea/
+
+# New directory
+.onedrive_downloader/ 
