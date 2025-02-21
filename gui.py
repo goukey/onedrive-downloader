@@ -12,10 +12,31 @@ import onedrive_downloader
 from get_urls_only import main as get_urls
 from send_to_aria2 import get_aria2_config, send_to_aria2, load_config, save_config
 import requests
-try:
-    from version import VERSION
-except ImportError:
-    VERSION = None
+from version import __version__
+
+class TextRedirector:
+    def __init__(self, text_func):
+        self._text_func = text_func
+        self._buffer = ""
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+
+    def write(self, text):
+        self._buffer += text
+        while '\n' in self._buffer:
+            line, self._buffer = self._buffer.split('\n', 1)
+            if line.strip():  # 只处理非空行
+                self._text_func(line.strip())
+
+    def flush(self):
+        if self._buffer.strip():
+            self._text_func(self._buffer.strip())
+            self._buffer = ""
+
+    def __del__(self):
+        # 恢复原始输出
+        sys.stdout = self._original_stdout
+        sys.stderr = self._original_stderr
 
 # 定义缓存目录（在程序运行目录下）
 CACHE_DIR = Path('.onedrive_downloader')
@@ -35,27 +56,17 @@ def hide_directory(path):
         except Exception as e:
             print(f"设置隐藏属性时出错: {e}")
 
-def get_version_from_git():
-    """从git tag获取版本号"""
-    # 如果存在注入的版本号，优先使用
-    if VERSION:
-        return VERSION
-    
-    try:
-        # 获取最新的tag
-        result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
-                              capture_output=True, text=True)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return "v1.0.0"  # 如果获取失败，返回默认版本号
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 从git tag获取版本号
-        self.version = get_version_from_git()
+        
+        # 只在GUI模式下重定向输出
+        if not sys.stdout.isatty():  # 检查是否在终端中运行
+            sys.stdout = TextRedirector(self.show_status)
+            sys.stderr = TextRedirector(self.show_status)
+        
+        # 使用version.py中定义的版本号
+        self.version = f"v{__version__}"
         
         # 确保缓存目录存在
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
