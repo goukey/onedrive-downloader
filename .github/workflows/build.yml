@@ -24,14 +24,14 @@ jobs:
     
     - name: Build Windows executable
       run: |
-        python -m nuitka ^
-          --windows-console-mode=disable ^
-          --onefile ^
-          --enable-plugin=pyqt6 ^
-          --windows-icon-from-nico=assets/icon.ico ^
-          --follow-imports ^
-          --output-dir=build ^
-          --output-filename="OneDrive下载器-Windows.exe" ^
+        python -m nuitka `
+          --windows-console-mode=disable `
+          --onefile `
+          --enable-plugin=pyqt6 `
+          --windows-icon-from-ico=assets/icon.ico `
+          --follow-imports `
+          --output-dir=build `
+          --output-filename="OneDrive下载器-Windows.exe" `
           gui.py
     
     - name: Upload Windows artifact
