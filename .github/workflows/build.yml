@@ -43,7 +43,7 @@ jobs:
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OneDrive下载器-Windows
+        name: OneDrive-Downloader-Windows
         path: build/OneDrive下载器-Windows.exe
 
   build-linux:
@@ -85,5 +85,5 @@ jobs:
     - name: Upload Linux artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OneDrive下载器-Linux
+        name: OneDrive-Downloader-Linux
         path: build/OneDrive下载器-Linux 
