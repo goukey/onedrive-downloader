@@ -1,4 +1,5 @@
-# 临时文件
+# 临时文件和缓存
+.onedrive_downloader/
 tmp.json
 result.txt
 aria2_config.json
@@ -9,14 +10,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# PyInstaller
-build/
-dist/
-*.spec
-
 # IDE
 .vscode/
 .idea/
 
-# New directory
-.onedrive_downloader/ 
+# Nuitka构建文件
+build/
+*.build/
+*.dist/
+*.onefile-build/
+nuitka-crash-report.xml
+
+# Python虚拟环境
+venv/ 

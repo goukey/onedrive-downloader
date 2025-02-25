@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=OneDrive下载器
+Name[zh_CN]=OneDrive下载器
+Comment=OneDrive个人版文件下载工具
+Comment[zh_CN]=OneDrive个人版文件下载工具
+Exec=${INSTALL_PATH}/OneDrive下载器
+Icon=${INSTALL_PATH}/assets/icon-256.png
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=onedrive;download;
+StartupWMClass=onedrive-downloader 
