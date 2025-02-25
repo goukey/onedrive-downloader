@@ -37,13 +37,13 @@
    - 保存常用配置
 
 #### Windows 版本
-- 下载 `OneDrive下载器.exe` 文件
+- 下载 `OneDrive下载器-Windows.exe` 文件
 - 双击运行即可使用
 
 #### Linux 版本
-- 下载 `OneDrive下载器` 可执行文件
-- 添加执行权限：`chmod +x OneDrive下载器`
-- 双击运行或在终端中执行 `./OneDrive下载器`
+- 下载 `OneDrive下载器-Linux` 可执行文件
+- 添加执行权限：`chmod +x OneDrive下载器-Linux`
+- 双击运行或在终端中执行 `./OneDrive下载器-Linux`
 - 可选：使用提供的 `.desktop` 文件创建桌面快捷方式
 
 ### 命令行版本
