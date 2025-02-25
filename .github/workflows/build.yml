@@ -38,14 +38,14 @@ jobs:
           --windows-icon-from-ico=assets/icon.ico `
           --follow-imports `
           --output-dir=build `
-          --output-filename="OneDrive下载器-Windows.exe" `
+          --output-filename="OneDrive-Downloader-Windows.exe" `
           gui.py
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OneDrive-Downloader-Windows
-        path: build/OneDrive下载器-Windows.exe
+        name: OneDrive-Downloader-Windows.exe
+        path: build/OneDrive-Downloader-Windows.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -77,17 +77,17 @@ jobs:
           --include-package=requests \
           --follow-imports \
           --output-dir=build \
-          --output-filename="OneDrive下载器-Linux" \
+          --output-filename="OneDrive-Downloader-Linux" \
           gui.py
     
     - name: Make executable
-      run: chmod +x build/OneDrive下载器-Linux
+      run: chmod +x build/OneDrive-Downloader-Linux
     
     - name: Upload Linux artifact
       uses: actions/upload-artifact@v4
       with:
         name: OneDrive-Downloader-Linux
-        path: build/OneDrive下载器-Linux
+        path: build/OneDrive-Downloader-Linux
 
   # 添加发布任务
   create-release:
@@ -119,29 +119,32 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           
-          # 获取最近的提交记录作为更新日志
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            # 如果是标签，获取上一个标签到当前标签的提交
-            PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-            if [ -n "$PREVIOUS_TAG" ]; then
-              CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..$VERSION)
+          # 优先使用标签消息作为更新日志
+          if [[ -z "$TAG_MESSAGE" ]]; then
+            # 如果标签消息为空，获取最近的提交记录作为更新日志
+            if [[ $GITHUB_REF == refs/tags/* ]]; then
+              # 如果是标签，获取上一个标签到当前标签的提交
+              PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+              if [ -n "$PREVIOUS_TAG" ]; then
+                CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..$VERSION)
+              else
+                # 如果没有上一个标签，获取最近10条提交
+                CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
+              fi
             else
-              # 如果没有上一个标签，获取最近10条提交
+              # 如果不是标签，获取最近10条提交
               CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
             fi
-          else
-            # 如果不是标签，获取最近10条提交
-            CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
+            
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
           fi
-          
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          name: OneDrive-Downloader-Windows
+          name: OneDrive-Downloader-Windows.exe
           path: ./artifacts/windows
       
       - name: Download Linux Artifact
@@ -149,6 +152,12 @@ jobs:
         with:
           name: OneDrive-Downloader-Linux
           path: ./artifacts/linux
+      
+      - name: Rename artifacts for release
+        run: |
+          mkdir -p ./release
+          cp ./artifacts/windows/OneDrive-Downloader-Windows.exe ./release/OneDrive下载器-Windows.exe
+          cp ./artifacts/linux/OneDrive-Downloader-Linux ./release/OneDrive下载器-Linux
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -158,12 +167,9 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./artifacts/windows/OneDrive下载器-Windows.exe
-            ./artifacts/linux/OneDrive下载器-Linux
+            ./release/OneDrive下载器-Windows.exe
+            ./release/OneDrive下载器-Linux
           body: |
-            # OneDrive下载器 ${{ steps.get_version.outputs.version }}
-            
-            发布日期: ${{ steps.get_version.outputs.date }}
             
             ## 更新内容
             ${{ steps.get_version.outputs.tag_message || steps.get_version.outputs.changelog }}
