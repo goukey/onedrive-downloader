@@ -24,6 +24,12 @@ jobs:
     
     - name: Build Windows executable
       run: |
+        # 创建缓存目录并下载 Dependency Walker
+        $depCachePath = "$env:LOCALAPPDATA\Nuitka\Nuitka\Cache\downloads\depends\x86_64"
+        New-Item -Path $depCachePath -ItemType Directory -Force
+        Invoke-WebRequest -Uri "https://dependencywalker.com/depends22_x64.zip" -OutFile "$depCachePath\depends22_x64.zip"
+        Expand-Archive -Path "$depCachePath\depends22_x64.zip" -DestinationPath $depCachePath -Force
+
         python -m nuitka `
           --windows-console-mode=disable `
           --onefile `
