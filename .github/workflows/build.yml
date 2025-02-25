@@ -1,16 +1,17 @@
 name: Build Executables
 
 on:
+  push:
+    branches: [dev]
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   build-windows:
     runs-on: windows-latest
-    
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
@@ -19,72 +20,64 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install nuitka
-        pip install ordered-set  # Nuitka 依赖
-        pip install zstandard    # 用于压缩
+        pip install nuitka ordered-set zstandard
     
-    - name: Build with Nuitka
+    - name: Build Windows executable
       run: |
-        python -m nuitka --windows-console-mode=disable --onefile --enable-plugin=pyqt6 --windows-icon-from-ico=assets/icon.ico --follow-imports --output-dir=build --output-filename="OneDrive下载器-Windows.exe" gui.py
+        python -m nuitka ^
+          --windows-console-mode=disable ^
+          --onefile ^
+          --enable-plugin=pyqt6 ^
+          --windows-icon-from-nico=assets/icon.ico ^
+          --follow-imports ^
+          --output-dir=build ^
+          --output-filename="OneDrive下载器-Windows.exe" ^
+          gui.py
     
-    - name: Upload Windows executable
+    - name: Upload Windows artifact
       uses: actions/upload-artifact@v3
       with:
         name: OneDrive下载器-Windows
         path: build/OneDrive下载器-Windows.exe
-        
+
   build-linux:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
         
-    - name: Install dependencies
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y patchelf
+    
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install nuitka
-        pip install ordered-set  # Nuitka 依赖
-        pip install zstandard    # 用于压缩
-        sudo apt-get update
-        sudo apt-get install -y patchelf  # Linux 构建需要
-        
-    - name: Build with Nuitka
-      run: |
-        python -m nuitka --onefile --enable-plugin=pyqt6 --linux-icon=assets/icon-256.png --include-package=requests --follow-imports --output-dir=build --output-filename="OneDrive下载器-Linux" gui.py
+        pip install nuitka ordered-set zstandard
     
-    - name: Upload Linux executable
+    - name: Build Linux executable
+      run: |
+        python -m nuitka \
+          --onefile \
+          --enable-plugin=pyqt6 \
+          --linux-icon=assets/icon-256.png \
+          --include-package=requests \
+          --follow-imports \
+          --output-dir=build \
+          --output-filename="OneDrive下载器-Linux" \
+          gui.py
+    
+    - name: Make executable
+      run: chmod +x build/OneDrive下载器-Linux
+    
+    - name: Upload Linux artifact
       uses: actions/upload-artifact@v3
       with:
         name: OneDrive下载器-Linux
-        path: build/OneDrive下载器-Linux
-        
-  create-release-assets:
-    needs: [build-windows, build-linux]
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Download all artifacts
-      uses: actions/download-artifact@v3
-      
-    - name: Create release assets
-      run: |
-        mkdir -p release
-        cp OneDrive下载器-Windows/OneDrive下载器-Windows.exe release/
-        cp OneDrive下载器-Linux/OneDrive下载器-Linux release/
-        cp OneDrive下载器.desktop release/
-        mkdir -p release/assets
-        cp -r assets/* release/assets/
-        
-    - name: Upload release assets
-      uses: actions/upload-artifact@v3
-      with:
-        name: release-assets
-        path: release/ 
+        path: build/OneDrive下载器-Linux 
