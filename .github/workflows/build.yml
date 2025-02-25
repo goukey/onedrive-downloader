@@ -2,16 +2,9 @@ name: Build Executables
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
     tags:
       - 'v*'
-  workflow_dispatch:  # 允许手动触发
-    inputs:
-      release:
-        description: '创建发布版本'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   build-windows:
@@ -100,8 +93,8 @@ jobs:
   create-release:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    # 只在标签推送或手动触发并选择发布时运行
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true')
+    # 只在标签推送时运行
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
