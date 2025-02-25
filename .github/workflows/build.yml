@@ -35,7 +35,7 @@ jobs:
           gui.py
     
     - name: Upload Windows artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OneDrive下载器-Windows
         path: build/OneDrive下载器-Windows.exe
@@ -77,7 +77,7 @@ jobs:
       run: chmod +x build/OneDrive下载器-Linux
     
     - name: Upload Linux artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OneDrive下载器-Linux
         path: build/OneDrive下载器-Linux 
