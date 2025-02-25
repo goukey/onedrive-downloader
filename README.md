@@ -36,10 +36,23 @@
    - 导出直链文件
    - 保存常用配置
 
+#### Windows 版本
+- 下载 `OneDrive下载器.exe` 文件
+- 双击运行即可使用
+
+#### Linux 版本
+- 下载 `OneDrive下载器` 可执行文件
+- 添加执行权限：`chmod +x OneDrive下载器`
+- 双击运行或在终端中执行 `./OneDrive下载器`
+- 可选：使用提供的 `.desktop` 文件创建桌面快捷方式
+
 ### 命令行版本
 ```bash
 # 安装依赖
-pip install -r requirements.txt
+# 使用清华源安装依赖（推荐国内用户使用）
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple requests  # 命令行版本只需要 requests 库
+# 或使用默认源安装
+# pip install requests
 
 # 运行下载器
 python oneclick_downloader.py
@@ -55,6 +68,9 @@ A: 请检查：
 Q: 如何更新软件？
 A: 直接下载最新Release的可执行文件即可，配置会自动保留
 
+Q: Linux 版本如何创建桌面快捷方式？
+A: 下载 `.desktop` 文件，修改其中的路径后放置在 `~/.local/share/applications/` 目录
+
 ## 注意事项
 - 首次使用需要配置Aria2的RPC地址和密码
 - 获取的文件直链有效期为1小时，超时需要重新运行程序获取
@@ -62,7 +78,7 @@ A: 直接下载最新Release的可执行文件即可，配置会自动保留
 
 ## 环境要求
 - Windows用户：Windows 7/8/10/11
-- Linux用户：Python 3.6+
+- Linux用户：Python 3.6+，支持图形界面的桌面环境
 - Aria2 (需要开启RPC)
 
 ## 许可证
