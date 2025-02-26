@@ -171,7 +171,6 @@ jobs:
             ./artifacts/windows/OneDrive-Downloader-Windows.exe
             ./artifacts/linux/OneDrive-Downloader-Linux
           body: |
-                        
             ## 更新内容
             ${{ steps.get_version.outputs.tag_message || steps.get_version.outputs.changelog }}
             
