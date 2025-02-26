@@ -37,13 +37,13 @@
    - 保存常用配置
 
 #### Windows 版本
-- 下载 `OneDrive下载器-Windows.exe` 文件
+- 下载 `OneDrive-Downloader-Windows.exe` 文件
 - 双击运行即可使用
 
 #### Linux 版本
-- 下载 `OneDrive下载器-Linux` 可执行文件
-- 添加执行权限：`chmod +x OneDrive下载器-Linux`
-- 双击运行或在终端中执行 `./OneDrive下载器-Linux`
+- 下载 `OneDrive-Downloader-Linux` 可执行文件
+- 添加执行权限：`chmod +x OneDrive-Downloader-Linux`
+- 双击运行或在终端中执行 `./OneDrive-Downloader-Linux`
 - 可选：使用提供的 `.desktop` 文件创建桌面快捷方式
 
 ### 命令行版本
@@ -60,15 +60,18 @@ python oneclick_downloader.py
 
 ## 常见问题
 Q: 为什么提示RPC连接失败？
+
 A: 请检查：
   1. Aria2是否已启动并启用RPC
   2. RPC地址格式是否正确（需以/jsonrpc结尾）
   3. 防火墙是否放行了Aria2的端口（默认6800）
 
 Q: 如何更新软件？
+
 A: 直接下载最新Release的可执行文件即可，配置会自动保留
 
 Q: Linux 版本如何创建桌面快捷方式？
+
 A: 下载 `.desktop` 文件，修改其中的路径后放置在 `~/.local/share/applications/` 目录
 
 ## 注意事项

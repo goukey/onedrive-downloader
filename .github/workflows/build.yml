@@ -106,11 +106,20 @@ jobs:
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             # 从标签获取版本
             VERSION=${GITHUB_REF#refs/tags/}
-            # 获取标签消息
-            TAG_MESSAGE=$(git tag -l --format='%(contents)' $VERSION)
+            
+            # 确保获取完整的标签历史
+            git fetch --tags --force
+            
+            # 获取标签消息 (使用更可靠的方法)
+            TAG_MESSAGE=$(git tag -n100 --format='%(contents)' $VERSION)
+            
             echo "tag_message<<EOF" >> $GITHUB_OUTPUT
             echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
+            
+            # 调试输出
+            echo "获取到的标签消息:"
+            echo "$TAG_MESSAGE"
           else
             # 从 version.py 获取版本
             VERSION=$(python -c "import re; print(re.search(r'__version__ = \"(.+?)\"', open('version.py').read()).group(1))")
@@ -119,27 +128,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           
-          # 优先使用标签消息作为更新日志
-          if [[ -z "$TAG_MESSAGE" ]]; then
-            # 如果标签消息为空，获取最近的提交记录作为更新日志
-            if [[ $GITHUB_REF == refs/tags/* ]]; then
-              # 如果是标签，获取上一个标签到当前标签的提交
-              PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-              if [ -n "$PREVIOUS_TAG" ]; then
-                CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..$VERSION)
-              else
-                # 如果没有上一个标签，获取最近10条提交
-                CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
-              fi
+          # 始终生成提交记录作为备用更新日志
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            # 如果是标签，获取上一个标签到当前标签的提交
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREVIOUS_TAG" ]; then
+              CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..$VERSION)
             else
-              # 如果不是标签，获取最近10条提交
+              # 如果没有上一个标签，获取最近10条提交
               CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
             fi
-            
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            echo "$CHANGELOG" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # 如果标签消息为空，获取最近的提交记录作为更新日志
+            # 如果不是标签，获取最近10条提交
+            CHANGELOG=$(git log --pretty=format:"- %s" -n 10)
           fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
@@ -153,12 +160,6 @@ jobs:
           name: OneDrive-Downloader-Linux
           path: ./artifacts/linux
       
-      - name: Rename artifacts for release
-        run: |
-          mkdir -p ./release
-          cp ./artifacts/windows/OneDrive-Downloader-Windows.exe ./release/OneDrive下载器-Windows.exe
-          cp ./artifacts/linux/OneDrive-Downloader-Linux ./release/OneDrive下载器-Linux
-      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -167,13 +168,15 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./release/OneDrive下载器-Windows.exe
-            ./release/OneDrive下载器-Linux
+            ./artifacts/windows/OneDrive-Downloader-Windows.exe
+            ./artifacts/linux/OneDrive-Downloader-Linux
           body: |
-            
+                        
             ## 更新内容
             ${{ steps.get_version.outputs.tag_message || steps.get_version.outputs.changelog }}
             
             ## 下载
-            - [Windows版本](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/OneDrive下载器-Windows.exe)
-            - [Linux版本](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/OneDrive下载器-Linux) 
+            - [Windows版本](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/OneDrive-Downloader-Windows.exe) (OneDrive下载器 Windows版)
+            - [Linux版本](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/OneDrive-Downloader-Linux) (OneDrive下载器 Linux版)
+            
+            > 注意：文件使用英文名称发布，但软件内部仍然是中文界面 
