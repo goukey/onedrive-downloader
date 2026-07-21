@@ -9,8 +9,7 @@ from pathlib import Path
 import ctypes
 import subprocess
 import onedrive_downloader
-from get_urls_only import main as get_urls
-from send_to_aria2 import get_aria2_config, send_to_aria2, load_config, save_config
+from send_to_aria2 import send_to_aria2, load_config, save_config
 import requests
 from version import __version__
 
@@ -372,17 +371,13 @@ class MainWindow(QMainWindow):
             # 清空文件表格
             self.file_table.setRowCount(0)
             
-            # 获取文件列表
+            # 获取文件列表（写入 .onedrive_downloader/tmp.json）
             share_url = self.link_input.text().strip()
             if not onedrive_downloader.get_onedrive_files(share_url):
                 self.show_status("获取文件列表失败")
                 return
-            
-            # 生成下载链接文件
-            get_urls()
-            
+
             # 读取文件列表
-            # 确保缓存目录存在
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             
             try:
@@ -564,21 +559,27 @@ class MainWindow(QMainWindow):
                         return
             
             self.show_status(f"推送完成: 成功 {success} 个，失败 {len(selected)-success} 个")
-            
-            # 第一次推送成功后询问是否保存配置
+
+            # 仅在配置有变化或尚未保存时询问是否保存
             if success > 0:
-                reply = QMessageBox.question(
-                    self, 
-                    '保存配置',
-                    '是否保存当前的aria2配置？\n'
-                    f'RPC地址: {self.rpc_input.text()}\n'
-                    f'RPC密码: {self.secret_input.text()}',
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                saved = load_config() or {}
+                config_changed = (
+                    saved.get("rpc") != config["rpc"]
+                    or saved.get("secret") != config["secret"]
                 )
-                if reply == QMessageBox.StandardButton.Yes:
-                    save_config(config)
-                    self.show_status("aria2配置已保存")
-            
+                if config_changed:
+                    reply = QMessageBox.question(
+                        self,
+                        "保存配置",
+                        "是否保存当前的aria2配置？\n"
+                        f'RPC地址: {self.rpc_input.text()}\n'
+                        f'RPC密码: {self.secret_input.text()}',
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    )
+                    if reply == QMessageBox.StandardButton.Yes:
+                        save_config(config)
+                        self.show_status("aria2配置已保存")
+
             # 下载成功后清空选择
             self.is_batch_updating = True
             for i in range(self.file_table.rowCount()):

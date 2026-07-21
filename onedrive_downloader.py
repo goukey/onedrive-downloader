@@ -1,34 +1,35 @@
 import json
-import re
-import urllib
-import urllib.request
-
-from pprint import pprint
-from urllib import parse
-
-import requests
 import os
-import copy
 import sys
 import io
-
-from requests.models import codes
-from requests.adapters import HTTPAdapter, Retry
+import urllib.parse
+from pprint import pprint
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+import requests
+from requests.adapters import HTTPAdapter, Retry
 
-# 移除所有全局变量
-# 确保没有模块级代码
+# 仅在作为脚本直接运行时包装 stdout，避免 import 时影响 GUI
+if __name__ == "__main__" and hasattr(sys.stdout, "buffer"):
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    except Exception:
+        pass
 
-# 将fileCount改为函数参数传递
-
-header = {
+# 只读请求头模板，禁止原地修改（修复二次解析需重启的问题）
+BASE_HEADERS = {
     "sec-ch-ua-mobile": "?0",
     "upgrade-insecure-requests": "1",
     "dnt": "1",
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51",
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    "user-agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51"
+    ),
+    "accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+    ),
     "service-worker-navigation-preload": "true",
     "sec-fetch-site": "same-origin",
     "sec-fetch-mode": "navigate",
@@ -36,14 +37,18 @@ header = {
     "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
 }
 
-# 定义缓存目录（在程序运行目录下）
-CACHE_DIR = Path('.onedrive_downloader')
-TEMP_JSON_PATH = CACHE_DIR / 'tmp.json'
+# 兼容旧代码中的 header 名称（只读别名，请勿对其赋值修改内容）
+header = BASE_HEADERS
 
-# 确保缓存目录存在
+CACHE_DIR = Path(".onedrive_downloader")
+TEMP_JSON_PATH = CACHE_DIR / "tmp.json"
+
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# 首字母大写
+APP_UUID = "5cbed6ac-a083-4e14-b191-b4ba07653de2"
+DEVICE_CODE = "5c872a7a-0906-4ccc-a157-2b003598569f"
+
+
 def capitalize(s):
     return s[0].upper() + s[1:]
 
@@ -52,27 +57,73 @@ def newSession():
     s = requests.session()
     retries = Retry(total=5, backoff_factor=0.1)
     s.mount("http://", HTTPAdapter(max_retries=retries))
+    s.mount("https://", HTTPAdapter(max_retries=retries))
     return s
+
+
+def _extract_redeem(redirect_url):
+    """从跳转 URL 中解析 redeem 参数。"""
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(redirect_url).query)
+    redeem_list = query.get("redeem")
+    if not redeem_list or not redeem_list[0]:
+        raise ValueError(
+            "无法从跳转链接中解析 redeem 参数，请确认分享链接有效且为个人版 1drv.ms 链接"
+        )
+    return redeem_list[0]
+
+
+def _build_auth_headers(auth_data, prefer=None):
+    """每次请求独立构建 auth 头，绝不污染 BASE_HEADERS。"""
+    headers = {
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "zh-HK,zh-TW;q=0.5",
+        "Connection": "keep-alive",
+        "Content-Type": f"multipart/form-data;boundary={DEVICE_CODE}",
+        "Origin": "https://onedrive.live.com",
+        "Referer": "https://onedrive.live.com/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "TE": "trailers",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) "
+            "Gecko/20100101 Firefox/135.0"
+        ),
+        "Authorization": f"{capitalize(auth_data['authScheme'])} {auth_data['token']}",
+    }
+    if prefer:
+        headers["Prefer"] = prefer
+    return headers
+
+
+def _download_url(item):
+    """优先取 Graph 下载字段，回退旧字段名。"""
+    return (
+        item.get("@microsoft.graph.downloadUrl")
+        or item.get("@content.downloadUrl")
+        or ""
+    )
 
 
 def getFiles(originalPath, req=None, layers=0, _id=0):
     fileCount = 0
-    filesData = []
-    isSharepoint = False
-    if "-my" not in originalPath:
-        isSharepoint = True
+    isSharepoint = "-my" not in originalPath
     if req is None:
         req = newSession()
-    reqf = req.get(originalPath, headers=header)
+
+    # 使用模板副本，避免污染全局头
+    reqf = req.get(originalPath, headers=dict(BASE_HEADERS))
     redirectURL = reqf.url
     print(redirectURL)
-    rex = re.compile(r"&redeem=(.*)&")
-    redeem = rex.search(redirectURL).group(1)
+
+    redeem = _extract_redeem(redirectURL)
 
     query = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(redirectURL).query))
+    if "id" not in query:
+        raise ValueError("跳转链接中缺少 id 参数，无法定位文件夹")
+
     redirectSplitURL = redirectURL.split("/")
-    appid = "1141147648"
-    appUuid = "5cbed6ac-a083-4e14-b191-b4ba07653de2"
 
     relativeFolder = ""
     rootFolder = query["id"]
@@ -89,25 +140,17 @@ def getFiles(originalPath, req=None, layers=0, _id=0):
             else:
                 relativeFolder += i
                 break
-    relativeUrl = (
-        parse.quote(relativeFolder)
-        .replace("/", "%2F")
-        .replace("_", "%5F")
-        .replace("-", "%2D")
+
+    reqf = req.post(
+        "https://api-badgerp.svc.ms/v1.0/token",
+        data={"appId": APP_UUID},
+        headers=dict(BASE_HEADERS),
     )
-    rootFolderUrl = (
-        parse.quote(rootFolder)
-        .replace("/", "%2F")
-        .replace("_", "%5F")
-        .replace("-", "%2D")
-    )
-
-    reqf = req.post("https://api-badgerp.svc.ms/v1.0/token", data={"appId": appUuid})
-
-    deviceCode = "5c872a7a-0906-4ccc-a157-2b003598569f"  # 随机生成
-
     print(reqf.text)
     authData = json.loads(reqf.text)
+    if "token" not in authData or "authScheme" not in authData:
+        raise ValueError(f"获取 Badger Token 失败: {reqf.text[:200]}")
+
     drives = relativeFolder.split("!")[0]
     postData = """--{}
 Content-Disposition: form-data;name=data
@@ -122,72 +165,45 @@ Authorization: {} {}
 
 
 --{}--""".format(
-        deviceCode, authData["authScheme"], authData["token"], deviceCode
-    ).replace(
-        "\n", "\r\n"
-    )
+        DEVICE_CODE, authData["authScheme"], authData["token"], DEVICE_CODE
+    ).replace("\n", "\r\n")
 
-    authHeaderRaw = [
-        {"name": "Accept", "value": "*/*"},
-        {"name": "Accept-Encoding", "value": "gzip, deflate, br, zstd"},
-        {"name": "Accept-Language", "value": "zh-HK,zh-TW;q=0.5"},
-        {"name": "Connection", "value": "keep-alive"},
-        {
-            "name": "Content-Type",
-            "value": "multipart/form-data;boundary={}".format(deviceCode),
-        },
-        {"name": "Host", "value": "my.microsoftpersonalcontent.com"},
-        {"name": "Origin", "value": "https://onedrive.live.com"},
-        {"name": "Referer", "value": "https://onedrive.live.com/"},
-        {"name": "Sec-Fetch-Dest", "value": "empty"},
-        {"name": "Sec-Fetch-Mode", "value": "cors"},
-        {"name": "Sec-Fetch-Site", "value": "cross-site"},
-        {"name": "TE", "value": "trailers"},
-        {
-            "name": "User-Agent",
-            "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
-        },
-    ]
-
-    authHeader = header
-    # 将authHeaderRaw解析成正常的Header
-    for i in authHeaderRaw:
-        authHeader[i["name"]] = i["value"]
-
-    reqUrl = "https://my.microsoftpersonalcontent.com/_api/v2.0/shares/u!{}/driveitem?%24select=id%2CparentReference".format(
-        redeem
-    )
+    # share → driveitem（独立 headers）
+    reqUrl = (
+        "https://my.microsoftpersonalcontent.com/_api/v2.0/shares/u!{}/driveitem"
+        "?%24select=id%2CparentReference"
+    ).format(redeem)
     print(reqUrl)
-    authDriverHeader = authHeader
-    authDriverHeader["Authorization"] = "{} {}".format(
-        capitalize(authData["authScheme"]), authData["token"]
-    )
-    authDriverHeader["Prefer"] = "autoredeem"
+    share_headers = _build_auth_headers(authData, prefer="autoredeem")
     reqf = req.post(
         reqUrl,
         data="%24select=id%2CparentReference",
-        headers=authHeader,
+        headers=share_headers,
     )
     print("ok")
 
-    reqUrl = "https://my.microsoftpersonalcontent.com/_api/v2.0/drives/{}/items/{}children?%24top=100&orderby=folder%2Cname&%24expand=thumbnails%2Ctags&select=*%2Cocr%2CwebDavUrl%2CsharepointIds%2CisRestricted%2CcommentSettings%2CspecialFolder%2CcontainingDrivePolicyScenarioViewpoint&ump=1".format(
-        drives.lower(), relativeFolder
-    )
+    # 列目录 children
+    reqUrl = (
+        "https://my.microsoftpersonalcontent.com/_api/v2.0/drives/{}/items/{}children"
+        "?%24top=100&orderby=folder%2Cname&%24expand=thumbnails%2Ctags"
+        "&select=*%2Cocr%2CwebDavUrl%2CsharepointIds%2CisRestricted%2CcommentSettings"
+        "%2CspecialFolder%2CcontainingDrivePolicyScenarioViewpoint&ump=1"
+    ).format(drives.lower(), relativeFolder)
 
     print(reqUrl)
+    list_headers = _build_auth_headers(authData)
     reqf = req.post(
         reqUrl,
         data=postData.encode("utf-8"),
-        headers=authHeader,
+        headers=list_headers,
     )
 
     print(reqf.text)
 
-    # 修复文件数据解析逻辑
     try:
         response_data = json.loads(reqf.text)
-        if 'value' in response_data:  # 检查实际API响应结构
-            filesData = response_data['value']
+        if "value" in response_data:
+            filesData = response_data["value"]
         else:
             print("无法解析文件列表，响应结构异常:")
             pprint(response_data)
@@ -196,45 +212,53 @@ Authorization: {} {}
         print(f"解析API响应失败: {str(e)}")
         return []
 
-    # 添加调试信息
     print(f"当前层级 {layers} 找到 {len(filesData)} 个项目")
     if len(filesData) > 0:
         print("首个项目示例:")
         pprint(filesData[0])
-        sample_item = filesData[0]
-        print("可用字段列表:", sample_item.keys())
+        print("可用字段列表:", filesData[0].keys())
 
-    # 修改文件类型判断逻辑
     collected_files = []
     for item in filesData:
-        if 'folder' in item.get('@microsoft.graph.downloadUrl', ''):
-            # 处理文件夹
-            print("\t" * layers, "文件夹:", item.get('name'))
+        # Graph 中文件夹带 folder 属性
+        if "folder" in item:
+            print("\t" * layers, "文件夹:", item.get("name"))
             sub_query = query.copy()
-            sub_query["id"] = os.path.join(sub_query["id"], item.get('name')).replace("\\", "/")
-            
-            sub_url = "/".join(redirectSplitURL[:-1]) + "/AllItems.aspx?" + urllib.parse.urlencode(sub_query)
+            sub_query["id"] = os.path.join(sub_query["id"], item.get("name")).replace(
+                "\\", "/"
+            )
+            sub_url = (
+                "/".join(redirectSplitURL[:-1])
+                + "/AllItems.aspx?"
+                + urllib.parse.urlencode(sub_query)
+            )
+            # 同一分享任务内复用 session；headers 每次重建，不污染
             sub_files = getFiles(sub_url, req, layers + 1)
             fileCount += len(sub_files)
             collected_files.extend(sub_files)
         else:
-            # 处理文件
+            raw_url = _download_url(item)
+            name = item.get("name")
+            if not raw_url:
+                print("\t" * layers, f"跳过无直链文件: {name}")
+                continue
             file_info = {
-                "name": item.get('name'),
-                "size": item.get('size', 0),
-                "raw_url": item.get('@content.downloadUrl', '')
+                "name": name,
+                "size": item.get("size", 0),
+                "raw_url": raw_url,
             }
             collected_files.append(file_info)
-            print("\t" * layers, f"文件[{fileCount}]: {item.get('name')}")
+            print("\t" * layers, f"文件[{fileCount}]: {name}")
+            fileCount += 1
 
-    # 保存文件信息到临时文件
-    with TEMP_JSON_PATH.open('w', encoding='utf-8') as f:
+    with TEMP_JSON_PATH.open("w", encoding="utf-8") as f:
         json.dump(collected_files, f, indent=4, ensure_ascii=False)
 
     return collected_files
 
+
 def get_onedrive_files(share_url=None):
-    """获取OneDrive文件列表"""
+    """获取OneDrive文件列表。每次调用使用全新 Session。"""
     if not share_url:
         share_url = input("请输入OneDrive分享链接：").strip()
     if not share_url:
@@ -242,18 +266,21 @@ def get_onedrive_files(share_url=None):
         return False
 
     try:
-        # 调用getFiles函数处理链接
-        files = getFiles(share_url)
+        # 顶层始终新建 Session，避免跨链接复用污染状态
+        files = getFiles(share_url, newSession())
         if files:
             print(f"成功获取 {len(files)} 个文件")
             return True
+        print("未获取到任何文件")
         return False
     except Exception as e:
         print(f"获取文件列表失败: {str(e)}")
         return False
 
+
 def main(share_url=None):
     return get_onedrive_files(share_url)
+
 
 if __name__ == "__main__":
     main()

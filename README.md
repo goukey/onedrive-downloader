@@ -2,8 +2,6 @@
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/goukey/onedrive-downloader?style=flat-square)
 
-> ⚠️ **重要提示**：当前版本每次输入新的分享链接获取文件列表时，都需要重新打开软件，否则会提示获取不到链接。此问题正在修复中，敬请期待。
-
 ![软件截图](screenshots/main.png)
 
 **专用于 OneDrive 个人版分享链接** 的批量下载工具。
@@ -77,6 +75,8 @@ A: 下载 `.desktop` 文件，修改其中的路径后放置在 `~/.local/share/
 ## 注意事项
 - 首次使用需要配置Aria2的RPC地址和密码
 - 获取的文件直链有效期为1小时，超时需要重新运行程序获取
+- 支持同一会话内连续解析多个分享链接（无需重启软件）
+- 支持子文件夹递归列出；单目录默认最多拉取 100 项（`$top=100`）
 - ⚠️ **xxx.sharepoint.com 形式的分享链接推荐使用** [OneDriveShareLinkPushAria2](https://github.com/gaowanliang/OneDriveShareLinkPushAria2)
 
 ## 环境要求
